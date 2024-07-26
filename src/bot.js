@@ -3,6 +3,8 @@ const TelegramBot = require('node-telegram-bot-api');
 const { sequelize, User, Group, Task, Subject, UserGroup } = require('./models');
 const logger = require('./services/logger');
 
+// ССЫЛКА НА БОТА: https://t.me/OktagonStudentHelper_bot
+
 // Создаем экземпляр бота
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
