@@ -1,17 +1,19 @@
 const express = require('express');
-const sequelize = require('./config/database');
 const bodyParser = require('body-parser');
-const app = express();
+const { sequelize } = require('./models'); // Импорт sequelize из index.js в models
 const routes = require('./routes');
+const logger = require('./services/logger');
+require('dotenv').config();
 
+const app = express();
 app.use(bodyParser.json());
 app.use('/api', routes);
 
-sequelize.sync().then(() => {
-    console.log('Database connected');
+sequelize.sync({ alter: true }).then(() => {
+    logger.info('Database synchronized');
     app.listen(3000, () => {
-        console.log('Server is running on port 3000');
+        logger.info('Server is running on port 3000');
     });
 }).catch(err => {
-    console.error('Unable to connect to the database:', err);
+    logger.error('Unable to synchronize the database:', err);
 });
