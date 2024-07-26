@@ -5,6 +5,9 @@ const routes = require('./routes');
 const logger = require('./services/logger');
 require('dotenv').config();
 
+// Запуск бота
+require('./bot');
+
 const app = express();
 app.use(bodyParser.json());
 app.use('/api', routes);

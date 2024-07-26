@@ -1,7 +1,7 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { sequelize, User, Group, Task, Subject, UserGroup } = require('./models');
-const logger = require('./logger');
+const logger = require('./services/logger');
 
 // Создаем экземпляр бота
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
