@@ -21,10 +21,6 @@ const Task = sequelize.define('Task', {
         type: DataTypes.DATE,
         allowNull: false
     },
-    subject: {
-        type: DataTypes.STRING,
-        allowNull: true
-    },
     creator_id: {
         type: DataTypes.INTEGER,
         references: {
