@@ -17,10 +17,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DATEONLY,
             allowNull: true
         },
-        subject: {
-            type: DataTypes.STRING,
-            allowNull: true
-        },
         creator_id: {
             type: DataTypes.INTEGER,
             allowNull: true,
