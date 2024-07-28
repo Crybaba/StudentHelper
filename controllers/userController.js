@@ -1,33 +1,49 @@
 const db = require('../models');
 
-exports.addUser = async (chatId, user) => {
+exports.addUser = async (telegramId, userInfo) => {
     try {
-        await db.User.findOrCreate({
-            where: { telegram_id: user.id },
-            defaults: {
-                telegram_id: user.id,
-                name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-                role: 'student'
-            }
-        });
+        let user = await db.User.findOne({ where: { telegram_id: telegramId } });
+        if (!user) {
+            user = await db.User.create({
+                telegram_id: telegramId,
+                username: userInfo.username,
+                name: userInfo.first_name + ' ' + (userInfo.last_name || ''),
+                role: 'student' // Дефолтная роль
+            });
+        }
+        return user;
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('Ошибка при добавлении пользователя:', error);
     }
 };
 
-exports.assignCurator = async (chatId, userId, groupId, bot) => {
+exports.assignCurator = async (chatId, username, groupId, bot) => {
     try {
-        const user = await db.User.findByPk(userId);
+        // Удаляем @ из username, если он присутствует
+        if (username.startsWith('@')) {
+            username = username.substring(1);
+        }
+
+        const user = await db.User.findOne({ where: { username: username } });
         const group = await db.Group.findByPk(groupId);
 
-        if (user && group) {
-            user.group_id = groupId;
-            user.role = 'curator';
-            await user.save();
-            bot.sendMessage(chatId, `Пользователь с ID: ${userId} назначен куратором группы с ID: ${groupId}.`);
-        } else {
-            bot.sendMessage(chatId, 'Некорректный ID пользователя или группы.');
+        if (!user) {
+            bot.sendMessage(chatId, `Пользователь с username @${username} не найден.`);
+            return;
         }
+
+        if (!group) {
+            bot.sendMessage(chatId, `Группа с ID ${groupId} не найдена.`);
+            return;
+        }
+
+        if (user.group_id === null) {
+            bot.sendMessage(chatId, `Пользователь @${user.username} не привязан к группе. Сначала назначьте пользователя в группу.`);
+            return;
+        }
+
+        await user.update({ group_id: groupId, role: 'curator' });
+        bot.sendMessage(chatId, `Пользователь @${user.username} назначен куратором группы "${group.name}".`);
     } catch (error) {
         bot.sendMessage(chatId, 'Произошла ошибка при назначении куратора.');
         console.error(error);
