@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const db = require('./models');
-const bot = require('./bot'); // Импортируем бота
+const bot = require('./bot'); 
 
 db.sequelize.sync().then(() => {
     app.listen(3000, () => {

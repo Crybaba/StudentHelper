@@ -7,7 +7,6 @@
     "dev": "nodemon src/app.js"
   },
   "keywords": [],
-  "author": "Crybaby",
   "license": "ISC",
   "description": "",
   "dependencies": {

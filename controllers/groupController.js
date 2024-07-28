@@ -93,3 +93,21 @@ exports.activateGroup = async (chatId, groupId, bot) => {
         console.error(error);
     }
 };
+
+exports.deleteGroup = async (chatId, groupName, bot) => {
+    try {
+        console.log(`Attempting to delete group: ${groupName}`);
+        const group = await db.Group.findOne({ where: { name: groupName } });
+        if (!group) {
+            bot.sendMessage(chatId, 'Группа не найдена.');
+            return;
+        }
+
+        await group.destroy();
+        bot.sendMessage(chatId, `Группа "${groupName}" была успешно удалена.`);
+        console.log(`Group ${groupName} deleted successfully.`);
+    } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при удалении группы.');
+        console.error('Error deleting group:', error);
+    }
+};
