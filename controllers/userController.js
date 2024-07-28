@@ -1,56 +1,43 @@
 const db = require('../models');
 
-exports.createUser = async (userData) => {
+exports.addUser = async (chatId, userData, bot) => {
     try {
-        const user = await db.User.create(userData);
-        return { success: true, message: 'Пользователь успешно создан.', user };
+        const newUser = await db.User.create(userData);
+        bot.sendMessage(chatId, `Пользователь "${newUser.username}" успешно добавлен.`);
     } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя.');
         console.error(error);
-        return { success: false, message: 'Произошла ошибка при создании пользователя.' };
     }
 };
 
-exports.updateUser = async (userId, updatedData) => {
-    try {
-        const user = await db.User.findByPk(userId);
-        if (user) {
-            await user.update(updatedData);
-            return { success: true, message: `Пользователь с ID ${userId} был обновлен.`, user };
-        } else {
-            return { success: false, message: `Пользователь с ID ${userId} не найден.` };
-        }
-    } catch (error) {
-        console.error(error);
-        return { success: false, message: 'Произошла ошибка при обновлении пользователя.' };
-    }
-};
-
-exports.deleteUser = async (userId) => {
+exports.deleteUser = async (chatId, userId, bot) => {
     try {
         const user = await db.User.findByPk(userId);
         if (user) {
             await user.destroy();
-            return { success: true, message: `Пользователь с ID ${userId} был удален.` };
+            bot.sendMessage(chatId, `Пользователь с ID ${userId} успешно удален.`);
         } else {
-            return { success: false, message: `Пользователь с ID ${userId} не найден.` };
+            bot.sendMessage(chatId, `Пользователь с ID ${userId} не найден.`);
         }
     } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при удалении пользователя.');
         console.error(error);
-        return { success: false, message: 'Произошла ошибка при удалении пользователя.' };
     }
 };
 
-exports.promoteToCurator = async (userId) => {
+exports.assignCurator = async (chatId, userId, groupId, bot) => {
     try {
         const user = await db.User.findByPk(userId);
         if (user) {
-            await user.update({ role: 'curator' });
-            return { success: true, message: `Пользователь с ID ${userId} был повышен до куратора.`, user };
+            user.role = 'curator';
+            user.groupId = groupId;
+            await user.save();
+            bot.sendMessage(chatId, `Пользователь с ID ${userId} назначен куратором группы с ID ${groupId}.`);
         } else {
-            return { success: false, message: `Пользователь с ID ${userId} не найден.` };
+            bot.sendMessage(chatId, `Пользователь с ID ${userId} не найден.`);
         }
     } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при назначении куратора.');
         console.error(error);
-        return { success: false, message: 'Произошла ошибка при повышении пользователя.' };
     }
 };

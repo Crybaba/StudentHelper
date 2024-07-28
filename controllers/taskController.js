@@ -1,56 +1,39 @@
 const db = require('../models');
 
-exports.createTask = async (taskData) => {
+exports.getTasks = async (chatId, groupId, bot) => {
     try {
-        const task = await db.Task.create(taskData);
-        return { success: true, message: 'Задача успешно создана.', task };
+        const tasks = await db.Task.findAll({
+            where: { groupId: groupId },
+            order: [['deadline', 'ASC']]
+        });
+        if (tasks.length === 0) {
+            bot.sendMessage(chatId, 'Нет задач для данной группы.');
+        } else {
+            const taskList = tasks.map(task => `${task.id}: ${task.title} - до ${task.deadline}`).join('\n');
+            bot.sendMessage(chatId, `Список задач для группы:\n${taskList}`);
+        }
     } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при получении списка задач.');
         console.error(error);
-        return { success: false, message: 'Произошла ошибка при создании задачи.' };
     }
 };
 
-exports.deleteTask = async (taskId) => {
+exports.createTask = async (chatId, taskData, bot) => {
     try {
-        const task = await db.Task.findByPk(taskId);
-        if (task) {
-            await task.destroy();
-            return { success: true, message: `Задача с ID ${taskId} была удалена.` };
-        } else {
-            return { success: false, message: `Задача с ID ${taskId} не найдена.` };
-        }
+        const newTask = await db.Task.create(taskData);
+        bot.sendMessage(chatId, `Задача "${newTask.title}" успешно создана.`);
     } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при создании задачи.');
         console.error(error);
-        return { success: false, message: 'Произошла ошибка при удалении задачи.' };
     }
 };
 
-exports.updateTask = async (taskId, updatedData) => {
+exports.getPendingTasks = async () => {
     try {
-        const task = await db.Task.findByPk(taskId);
-        if (task) {
-            await task.update(updatedData);
-            return { success: true, message: `Задача с ID ${taskId} была обновлена.`, task };
-        } else {
-            return { success: false, message: `Задача с ID ${taskId} не найдена.` };
-        }
+        const tasks = await db.Task.findAll({ where: { status: 'pending' } });
+        return tasks;
     } catch (error) {
-        console.error(error);
-        return { success: false, message: 'Произошла ошибка при обновлении задачи.' };
-    }
-};
-
-exports.completeTask = async (taskId) => {
-    try {
-        const task = await db.Task.findByPk(taskId);
-        if (task) {
-            await task.update({ status: 'completed' });
-            return { success: true, message: `Задача с ID ${taskId} была отмечена как выполненная.`, task };
-        } else {
-            return { success: false, message: `Задача с ID ${taskId} не найдена.` };
-        }
-    } catch (error) {
-        console.error(error);
-        return { success: false, message: 'Произошла ошибка при выполнении задачи.' };
+        console.error('Произошла ошибка при получении списка ожидающих задач:', error);
+        return [];
     }
 };
