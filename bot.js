@@ -224,7 +224,7 @@ bot.on('callback_query', async (query) => {
 
     if (userStates[chatId] && userStates[chatId].role === 'admin') {
         if (data === 'assign_curator') {
-            bot.sendMessage(chatId, 'Введите @username (без @!) или telegram_id пользователя для назначения куратором:');
+            bot.sendMessage(chatId, 'Введите @username пользователя для назначения куратором:');
             userStates[chatId].state = 'assign_curator';
             userStates[chatId].curatorStep = 'user_id';
         } else if (data === 'add_group_admin') {
