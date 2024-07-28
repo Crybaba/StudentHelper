@@ -1,34 +1,28 @@
 const express = require('express');
 const app = express();
-const mysql = require('mysql2');
+const bodyParser = require('body-parser');
 const db = require('./models');
 const bot = require('./bot'); // Импортируем бота
+
+app.use(bodyParser.json());
 
 // Импортируем маршруты
 const startRoute = require('./routes/start');
 const addGroupRoute = require('./routes/addGroup');
-const addPersonalTaskRoute = require('./routes/addPersonalTask');
+const inactiveGroupsRoute = require('./routes/inactiveGroups');
 
 // Используем маршруты
-app.use('/start', startRoute);
-app.use('/addGroup', addGroupRoute);
-app.use('/addPersonalTask', addPersonalTaskRoute);
+app.use('/start', startRoute.router);
+app.use('/addGroup', addGroupRoute.router);
+app.use('/inactiveGroups', inactiveGroupsRoute.router);
 
 // Привязываем команды бота к маршрутам
-bot.onText(/\/start/, (msg) => {
-    startRoute.handleStart(bot, msg);
-});
+bot.onText(/\/start/, (msg) => startRoute.handleStart(bot, msg));
+bot.onText(/\/addgroup/, (msg) => addGroupRoute.handleAddGroup(bot, msg));
+bot.onText(/\/inactivegroups/, (msg) => inactiveGroupsRoute.handleGetInactiveGroups(bot, msg));
 
-bot.onText(/\/addgroup/, (msg) => {
-    addGroupRoute.handleAddGroup(bot, msg);
-});
-
-bot.onText(/\/addpersonaltask/, (msg) => {
-    addPersonalTaskRoute.handleAddPersonalTask(bot, msg);
-});
-
-db.sequelize.sync().then((rec) => {
+db.sequelize.sync().then(() => {
     app.listen(3000, () => {
-        console.log(`Server started on port 3000`);
+        console.log("Server started on port 3000");
     });
 });

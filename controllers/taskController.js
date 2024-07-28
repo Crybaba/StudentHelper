@@ -1,56 +1,56 @@
 const db = require('../models');
 
-exports.createTask = async (chatId, taskData) => {
+exports.createTask = async (taskData) => {
     try {
         const task = await db.Task.create(taskData);
-        sendMessage(chatId, `Задача "${task.title}" была успешно создана.`);
+        return { success: true, message: 'Задача успешно создана.', task };
     } catch (error) {
-        sendMessage(chatId, 'Произошла ошибка при создании задачи.');
         console.error(error);
+        return { success: false, message: 'Произошла ошибка при создании задачи.' };
     }
 };
 
-exports.deleteTask = async (chatId, taskId) => {
+exports.deleteTask = async (taskId) => {
     try {
         const task = await db.Task.findByPk(taskId);
         if (task) {
             await task.destroy();
-            sendMessage(chatId, `Задача с ID ${taskId} была удалена.`);
+            return { success: true, message: `Задача с ID ${taskId} была удалена.` };
         } else {
-            sendMessage(chatId, `Задача с ID ${taskId} не найдена.`);
+            return { success: false, message: `Задача с ID ${taskId} не найдена.` };
         }
     } catch (error) {
-        sendMessage(chatId, 'Произошла ошибка при удалении задачи.');
         console.error(error);
+        return { success: false, message: 'Произошла ошибка при удалении задачи.' };
     }
 };
 
-exports.updateTask = async (chatId, taskId, updatedData) => {
+exports.updateTask = async (taskId, updatedData) => {
     try {
         const task = await db.Task.findByPk(taskId);
         if (task) {
             await task.update(updatedData);
-            sendMessage(chatId, `Задача с ID ${taskId} была успешно обновлена.`);
+            return { success: true, message: `Задача с ID ${taskId} была обновлена.`, task };
         } else {
-            sendMessage(chatId, `Задача с ID ${taskId} не найдена.`);
+            return { success: false, message: `Задача с ID ${taskId} не найдена.` };
         }
     } catch (error) {
-        sendMessage(chatId, 'Произошла ошибка при обновлении задачи.');
         console.error(error);
+        return { success: false, message: 'Произошла ошибка при обновлении задачи.' };
     }
 };
 
-exports.completeTask = async (chatId, taskId) => {
+exports.completeTask = async (taskId) => {
     try {
         const task = await db.Task.findByPk(taskId);
         if (task) {
             await task.update({ status: 'completed' });
-            sendMessage(chatId, `Задача с ID ${taskId} была помечена как выполненная.`);
+            return { success: true, message: `Задача с ID ${taskId} была отмечена как выполненная.`, task };
         } else {
-            sendMessage(chatId, `Задача с ID ${taskId} не найдена.`);
+            return { success: false, message: `Задача с ID ${taskId} не найдена.` };
         }
     } catch (error) {
-        sendMessage(chatId, 'Произошла ошибка при изменении статуса задачи.');
         console.error(error);
+        return { success: false, message: 'Произошла ошибка при выполнении задачи.' };
     }
 };

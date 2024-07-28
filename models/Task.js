@@ -29,6 +29,11 @@ module.exports = (sequelize, DataTypes) => {
                 key: 'id'
             }
         },
+        is_personal: {
+            type: DataTypes.ENUM('yes', 'no'),
+            defaultValue: 'yes',
+            allowNull: false
+        },
         group_id: {
             type: DataTypes.INTEGER,
             allowNull: true,
