@@ -1,40 +1,32 @@
 const db = require('../models');
 
-exports.addUser = async (chatId, userData, bot) => {
+exports.addUser = async (chatId, user) => {
     try {
-        const newUser = await db.User.create(userData);
-        bot.sendMessage(chatId, `Пользователь "${newUser.username}" успешно добавлен.`);
+        await db.User.findOrCreate({
+            where: { telegram_id: user.id },
+            defaults: {
+                telegram_id: user.id,
+                name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+                role: 'student'
+            }
+        });
     } catch (error) {
-        bot.sendMessage(chatId, 'Произошла ошибка при добавлении пользователя.');
-        console.error(error);
-    }
-};
-
-exports.deleteUser = async (chatId, userId, bot) => {
-    try {
-        const user = await db.User.findByPk(userId);
-        if (user) {
-            await user.destroy();
-            bot.sendMessage(chatId, `Пользователь с ID ${userId} успешно удален.`);
-        } else {
-            bot.sendMessage(chatId, `Пользователь с ID ${userId} не найден.`);
-        }
-    } catch (error) {
-        bot.sendMessage(chatId, 'Произошла ошибка при удалении пользователя.');
-        console.error(error);
+        console.error('Error registering user:', error);
     }
 };
 
 exports.assignCurator = async (chatId, userId, groupId, bot) => {
     try {
         const user = await db.User.findByPk(userId);
-        if (user) {
+        const group = await db.Group.findByPk(groupId);
+
+        if (user && group) {
+            user.group_id = groupId;
             user.role = 'curator';
-            user.groupId = groupId;
             await user.save();
-            bot.sendMessage(chatId, `Пользователь с ID ${userId} назначен куратором группы с ID ${groupId}.`);
+            bot.sendMessage(chatId, `Пользователь с ID: ${userId} назначен куратором группы с ID: ${groupId}.`);
         } else {
-            bot.sendMessage(chatId, `Пользователь с ID ${userId} не найден.`);
+            bot.sendMessage(chatId, 'Некорректный ID пользователя или группы.');
         }
     } catch (error) {
         bot.sendMessage(chatId, 'Произошла ошибка при назначении куратора.');

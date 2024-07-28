@@ -10,14 +10,19 @@ const userController = require('./controllers/userController');
 const userStates = {};
 
 // Обработка команды /start
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     userStates[chatId] = {};
+
+    // Добавление пользователя в базу данных
+    await userController.addUser(chatId, msg.from);
+
     bot.sendMessage(chatId, 'Привет! Какая группа вам нужна?', {
         reply_markup: {
             inline_keyboard: [
                 [{ text: 'Добавить группу', callback_data: 'add_group' }],
-                [{ text: 'Группы, что ожидают добавления', callback_data: 'pending_groups' }]
+                [{ text: 'Группы, что ожидают добавления', callback_data: 'pending_groups' }],
+                [{ text: 'Выбрать группу', callback_data: 'select_group_0' }]
             ]
         }
     });
@@ -26,7 +31,6 @@ bot.onText(/\/start/, (msg) => {
 // Обработка нажатий на кнопки
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
-    const messageId = query.message.message_id;
     const data = query.data;
 
     if (data === 'add_group') {
@@ -34,10 +38,14 @@ bot.on('callback_query', async (query) => {
         userStates[chatId].state = 'add_group';
     } else if (data === 'pending_groups') {
         await groupController.getPendingGroups(chatId, bot);
-    } else if (data.startsWith('group_')) {
-        const groupId = data.split('_')[1];
+    } else if (data.startsWith('select_group_')) {
+        const page = parseInt(data.split('_')[2]);
+        await groupController.showActiveGroups(chatId, bot, page);
+    } else if (data.startsWith('choose_group_')) {
+        const groupId = parseInt(data.split('_')[2]);
         userStates[chatId].groupId = groupId;
-        bot.sendMessage(chatId, 'Выберите действие:', {
+        await db.User.update({ group_id: groupId }, { where: { telegram_id: chatId } }); // Обновление group_id для пользователя
+        bot.sendMessage(chatId, `Вы выбрали группу с ID: ${groupId}`, {
             reply_markup: {
                 inline_keyboard: [
                     [{ text: 'Задачи', callback_data: `tasks_${groupId}` }],
@@ -60,7 +68,8 @@ bot.on('callback_query', async (query) => {
             reply_markup: {
                 inline_keyboard: [
                     [{ text: 'Добавить группу', callback_data: 'add_group' }],
-                    [{ text: 'Группы, что ожидают добавления', callback_data: 'pending_groups' }]
+                    [{ text: 'Группы, что ожидают добавления', callback_data: 'pending_groups' }],
+                    [{ text: 'Выбрать группу', callback_data: 'select_group_0' }]
                 ]
             }
         });
@@ -99,8 +108,6 @@ bot.onText(/\/admin/, (msg) => {
     bot.sendMessage(chatId, 'Выберите действие администратора:', {
         reply_markup: {
             inline_keyboard: [
-                [{ text: 'Добавить пользователя', callback_data: 'add_user' }],
-                [{ text: 'Удалить пользователя', callback_data: 'delete_user' }],
                 [{ text: 'Назначить куратора', callback_data: 'assign_curator' }],
                 [{ text: 'Назад', callback_data: 'back' }]
             ]
@@ -114,13 +121,7 @@ bot.on('callback_query', async (query) => {
     const data = query.data;
 
     if (userStates[chatId] && userStates[chatId].role === 'admin') {
-        if (data === 'add_user') {
-            bot.sendMessage(chatId, 'Введите данные пользователя для добавления:');
-            userStates[chatId].state = 'add_user';
-        } else if (data === 'delete_user') {
-            bot.sendMessage(chatId, 'Введите ID пользователя для удаления:');
-            userStates[chatId].state = 'delete_user';
-        } else if (data === 'assign_curator') {
+        if (data === 'assign_curator') {
             bot.sendMessage(chatId, 'Введите ID пользователя и ID группы для назначения куратором:');
             userStates[chatId].state = 'assign_curator';
         }
@@ -135,16 +136,7 @@ bot.on('message', async (msg) => {
     if (userStates[chatId] && userStates[chatId].role === 'admin') {
         const state = userStates[chatId].state;
 
-        if (state === 'add_user') {
-            // Добавляем пользователя (разделить данные, если нужно)
-            const userData = { /* данные пользователя */ };
-            await userController.addUser(chatId, userData, bot);
-            userStates[chatId] = { role: 'admin' };
-        } else if (state === 'delete_user') {
-            const userId = parseInt(text);
-            await userController.deleteUser(chatId, userId, bot);
-            userStates[chatId] = { role: 'admin' };
-        } else if (state === 'assign_curator') {
+        if (state === 'assign_curator') {
             const [userId, groupId] = text.split(' ').map(Number);
             await userController.assignCurator(chatId, userId, groupId, bot);
             userStates[chatId] = { role: 'admin' };
