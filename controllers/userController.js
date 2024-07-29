@@ -19,7 +19,6 @@ exports.addUser = async (telegramId, userInfo) => {
 
 exports.assignCurator = async (chatId, username, groupId, bot) => {
     try {
-        // Удаляем @ из username, если он присутствует
         if (username.startsWith('@')) {
             username = username.substring(1);
         }
