@@ -25,10 +25,6 @@ bot.onText(/\/start/, async (msg) => {
             [{ text: 'Назад', callback_data: 'back' }]
         ];
 
-        if (user.role === 'admin') {
-            buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
-        }
-
         bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
             reply_markup: {
                 inline_keyboard: buttons
@@ -90,10 +86,6 @@ bot.on('callback_query', async (query) => {
                 [{ text: `Добавить задачу`, callback_data: `add_task_${user.id}` }],
                 [{ text: 'Назад', callback_data: 'back' }]
             ];
-
-            if (user.role === 'admin') {
-                buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
-            }
 
             bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
                 reply_markup: {
@@ -164,10 +156,6 @@ bot.on('callback_query', async (query) => {
                         [{ text: 'Назад', callback_data: 'back' }]
                     ];
 
-                    if (user.role === 'admin') {
-                        buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
-                    }
-
                     bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
                         reply_markup: {
                             inline_keyboard: buttons
@@ -220,10 +208,6 @@ bot.on('message', async (msg) => {
                     [{ text: `Добавить задачу`, callback_data: `add_task_${user.id}` }],
                     [{ text: 'Назад', callback_data: 'back' }]
                 ];
-
-                if (user.role === 'admin') {
-                    buttons.unshift([{ text: 'Добавить группу', callback_data: 'add_group_admin' }]);
-                }
 
                 bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
                     reply_markup: {
