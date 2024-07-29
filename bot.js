@@ -255,7 +255,7 @@ bot.on('message', async (msg) => {
             bot.sendMessage(chatId, 'Введите дату завершения задачи в формате ГГГГ-ММ-ДД:');
             userStates[chatId].state = 'add_task_due_date';
         } else if (state === 'add_task_due_date') {
-            await taskController.addTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
+            await taskController.createTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
             userStates[chatId] = {};
             await returnToStartMenu();
         } else if (state === 'complete_task') {
