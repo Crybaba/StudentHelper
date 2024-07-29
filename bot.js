@@ -171,6 +171,10 @@ bot.on('callback_query', async (query) => {
         bot.sendMessage(chatId, 'Введите ID задачи для завершения:');
         userStates[chatId].state = 'complete_task';
     } else if (data === 'back') {
+        const user = await db.User.findOne({ where: { telegram_id: chatId } });
+        if (user) {
+            await user.update({ group_id: null });
+        }
         await returnToStartMenu();
     } else if (userStates[chatId] && userStates[chatId].role === 'admin') {
         if (data === 'assign_curator') {
