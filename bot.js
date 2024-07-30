@@ -58,6 +58,7 @@ bot.onText(/\/admin/, async (msg) => {
                     [{ text: 'Назначить куратора', callback_data: 'assign_curator' }],
                     [{ text: 'Активировать группу', callback_data: 'add_group_admin' }],
                     [{ text: 'Удалить группу', callback_data: 'delete_group' }],
+                    [{ text: 'Удалить куратора', callback_data: 'remove_curator' }],
                     [{ text: 'Назад', callback_data: 'back' }]
                 ]
             }
@@ -114,6 +115,7 @@ bot.on('callback_query', async (query) => {
                     [{ text: 'Назначить куратора', callback_data: 'assign_curator' }],
                     [{ text: 'Активировать группу', callback_data: 'add_group_admin' }],
                     [{ text: 'Удалить группу', callback_data: 'delete_group' }],
+                    [{ text: 'Удалить куратора', callback_data: 'remove_curator' }],
                     [{ text: 'Назад', callback_data: 'back' }]
                 ]
             }
@@ -139,6 +141,10 @@ bot.on('callback_query', async (query) => {
                 await user.update({ group_id: null });
             }
             await returnToStartMenu();
+            break;
+        case 'remove_curator':
+            bot.sendMessage(chatId, 'Введите @username (без @!) пользователя для удаления куратора:');
+            userStates[chatId].state = 'remove_curator';
             break;
         default:
             if (data.startsWith('select_group_')) {
@@ -173,7 +179,7 @@ bot.on('callback_query', async (query) => {
             } else if (userStates[chatId] && userStates[chatId].role === 'admin') {
                 switch (data) {
                     case 'assign_curator':
-                        bot.sendMessage(chatId, 'Введите @username (без @!) пользователя для назначения куратором:');
+                        bot.sendMessage(chatId, 'Введите @username пользователя для назначения куратором:');
                         userStates[chatId].state = 'assign_curator';
                         break;
                     case 'add_group_admin':
@@ -236,6 +242,7 @@ bot.on('message', async (msg) => {
                         [{ text: 'Назначить куратора', callback_data: 'assign_curator' }],
                         [{ text: 'Активировать группу', callback_data: 'add_group_admin' }],
                         [{ text: 'Удалить группу', callback_data: 'delete_group' }],
+                        [{ text: 'Удалить куратора', callback_data: 'remove_curator' }],
                         [{ text: 'Назад', callback_data: 'back' }]
                     ]
                 }
@@ -259,9 +266,19 @@ bot.on('message', async (msg) => {
                 userStates[chatId].state = 'add_task_due_date';
                 break;
             case 'add_task_due_date':
-                await taskController.createTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
-                userStates[chatId] = {};
-                await returnToStartMenu();
+                const enteredDate = new Date(text);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Set the time to midnight to only compare the date part
+                
+                if (isNaN(enteredDate.getTime())) {
+                    bot.sendMessage(chatId, 'Неверный формат даты. Пожалуйста, введите дату в формате ГГГГ-ММ-ДД:');
+                } else if (enteredDate < today) {
+                    bot.sendMessage(chatId, 'Пожалуйста, введите действительную дату завершения задачи:');
+                } else {
+                    await taskController.createTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, text, bot);
+                    userStates[chatId] = {};
+                    await returnToStartMenu();
+                }
                 break;
             case 'complete_task':
                 await taskController.completeTask(chatId, parseInt(text), bot);
@@ -299,11 +316,16 @@ bot.on('message', async (msg) => {
                 userStates[chatId] = {};
                 await returnToAdminMenu();
                 break;
+            case 'remove_curator':
+                const usernameToRemove = text.trim();
+                if (!usernameToRemove) {
+                    bot.sendMessage(chatId, 'Введено пустое значение. Попробуйте еще раз:');
+                    return;
+                }
+                await userController.removeCuratorRole(chatId, usernameToRemove, bot);
+                userStates[chatId] = {};
+                await returnToAdminMenu();
+                break;
         }
     }
 });
-
-bot.setMyCommands([
-    { command: '/start', description: 'Начало работы с ботом' },
-    { command: '/admin', description: 'Режим администратора' }
-]);

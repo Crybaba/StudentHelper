@@ -43,3 +43,29 @@ exports.assignCurator = async (chatId, username, groupId, bot) => {
         console.error(error);
     }
 };
+
+exports.removeCuratorRole = async (chatId, username, bot) => {
+    try {
+        if (username.startsWith('@')) {
+            username = username.substring(1);
+        }
+
+        const user = await db.User.findOne({ where: { username: username } });
+
+        if (!user) {
+            bot.sendMessage(chatId, `Пользователь с username @${username} не найден.`);
+            return;
+        }
+
+        if (user.role !== 'curator') {
+            bot.sendMessage(chatId, `Пользователь с username @${username} не является куратором.`);
+            return;
+        }
+
+        await user.update({ role: 'student', group_id: null });
+        bot.sendMessage(chatId, `Роль пользователя @${user.username} изменена на 'студент'.`);
+    } catch (error) {
+        bot.sendMessage(chatId, 'Произошла ошибка при удалении куратора.');
+        console.error(error);
+    }
+};
