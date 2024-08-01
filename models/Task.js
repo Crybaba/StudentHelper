@@ -25,6 +25,11 @@ module.exports = (sequelize, DataTypes) => {
                 key: 'id'
             }
         },
+        is_personal: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: true
+        },
         group_id: {
             type: DataTypes.INTEGER,
             allowNull: true,
