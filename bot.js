@@ -14,7 +14,7 @@ const sendStartMenu = async (chatId) => {
     const buttons = [
         [{ text: 'Добавить группу', callback_data: 'add_group' }],
         [{ text: 'Группы, что ожидают добавления', callback_data: 'pending_groups' }],
-        [{ text: 'Выбрать группу', callback_data: 'select_group_0' }]
+        [{ text: 'Выбрать группу', callback_data: 'select_active_group_0' }]
     ];
 
     bot.sendMessage(chatId, 'Привет! Какая группа вам нужна?', {
@@ -131,6 +131,7 @@ bot.onText(/\/admin/, async (msg) => {
 
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
     const data = query.data;
 
     if (!userStates[chatId]) {
@@ -140,6 +141,21 @@ bot.on('callback_query', async (query) => {
     await bot.answerCallbackQuery(query.id);
 
     const user = await db.User.findOne({ where: { telegram_id: chatId } });
+
+    if (data.startsWith('select_active_group_')) {
+        const page = parseInt(data.split('_').pop());
+        await groupController.showActiveGroups(chatId, bot, page);
+        return;
+    }
+
+    if (data.startsWith('choose_group_')) {
+        const groupId = parseInt(data.split('_').pop());
+        await db.User.update({ group_id: groupId }, { where: { telegram_id: chatId } });
+        const updatedUser = await db.User.findOne({ where: { telegram_id: chatId } });
+        await sendGroupMenu(chatId, updatedUser);
+        await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId });
+        return;
+    }
 
     switch (data) {
         case 'add_group':
@@ -156,19 +172,21 @@ bot.on('callback_query', async (query) => {
         case 'task_menu':
             await sendTaskMenu(chatId);
             break;
-        case 'back':
         case 'back_to_start':
+            await db.User.update({ group_id: null }, { where: { telegram_id: chatId } });
             await sendStartMenu(chatId);
             break;
         case 'back_to_group':
             await sendGroupMenu(chatId, user);
             break;
         case 'approve_task':
-        case 'reject_task':
-            // Логика обработки утверждения или отклонения задачи
+            // Логика обработки утверждения задачи
             await sendTaskRequestMenu(chatId);
             break;
-        // Добавьте другие case для обработок callback_data, если нужно
+        case 'reject_task':
+            // Логика обработки отклонения задачи
+            await sendTaskRequestMenu(chatId);
+            break;
     }
 });
 
@@ -189,3 +207,5 @@ bot.on('message', async (msg) => {
         }
     }
 });
+
+
