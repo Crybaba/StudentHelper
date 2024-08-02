@@ -105,17 +105,44 @@ const sendAdminMenu = async (chatId) => {
 
 // Отправка меню запросов задач
 const sendTaskRequestMenu = async (chatId) => {
-    bot.sendMessage(chatId, 'Заявка...', {
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: 'Добавить', callback_data: 'approve_task' }],
-                [{ text: 'Отклонить', callback_data: 'reject_task' }],
-                [{ text: 'Назад', callback_data: 'back_to_group' }]
-            ]
+    try {
+        const user = await db.User.findOne({ where: { chat_id: chatId } });
+
+        if (!user) {
+            bot.sendMessage(chatId, 'Пользователь не найден.');
+            return;
         }
-    });
-    userStates[chatId].previousMenu = sendTaskRequestMenu;
-}
+
+        const tasks = await db.Task.findAll({
+            where: {
+                status: 'pending',
+                is_personal: false,
+                group_id: user.group_id
+            }
+        });
+
+        if (tasks.length > 0) {
+            for (const task of tasks) {
+                bot.sendMessage(chatId, `Заявка на добавление задачи:\n\nЗаголовок: ${task.title}\nОписание: ${task.description}\nСрок: ${task.deadline}`, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: 'Подтвердить', callback_data: `approve_task_${task.id}` }],
+                            [{ text: 'Отклонить', callback_data: `reject_task_${task.id}` }],
+                            [{ text: 'Назад', callback_data: 'back_to_group' }]
+                        ]
+                    }
+                });
+            }
+            userStates[chatId].previousMenu = sendTaskRequestMenu;
+        } else {
+            bot.sendMessage(chatId, 'Нет заявок на добавление задач.');
+        }
+    } catch (error) {
+        console.error(error);
+        bot.sendMessage(chatId, 'Произошла ошибка при получении заявок на добавление задач.');
+    }
+};
+
 
 bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
