@@ -1,6 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const token = '7461792381:AAEIKFHDNLwC17s_3bro-oHCT2JCJ1YP-FE';
 const bot = new TelegramBot(token, { polling: true });
+const moment = require('moment');
 
 const groupController = require('./controllers/groupController');
 const taskController = require('./controllers/taskController');
@@ -27,20 +28,35 @@ const sendStartMenu = async (chatId) => {
 
 // Отправка меню группы
 const sendGroupMenu = async (chatId, user) => {
-    const group = await db.Group.findByPk(user.group_id);
-    const buttons = [
-        [{ text: 'Заявки на добавление задач', callback_data: 'getPendingTasks' }],
-        [{ text: 'Задачи', callback_data: 'task_menu' }],
-        [{ text: 'Добавить задачу', callback_data: 'add_task_menu' }],
-        [{ text: 'Назад', callback_data: 'back_to_start' }]
-    ];
-
-    bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
-        reply_markup: {
-            inline_keyboard: buttons
-        }
-    });
-    userStates[chatId].previousMenu = sendGroupMenu;
+    if (user && ( user.role === 'admin' || user.role === 'admin'))
+    {
+        const group = await db.Group.findByPk(user.group_id);
+        bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [{text: 'Заявки на добавление задач', callback_data: 'getPendingTasks'}],
+                    [{text: 'Задачи', callback_data: 'task_menu'}],
+                    [{text: 'Добавить задачу', callback_data: 'add_task_menu'}],
+                    [{text: 'Назад', callback_data: 'back_to_start'}]
+                ]
+            }
+        });
+        userStates[chatId].previousMenu = sendGroupMenu;
+    }
+    else
+    {
+        const group = await db.Group.findByPk(user.group_id);
+        bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
+            reply_markup: {
+                inline_keyboard: [
+                    [{text: 'Задачи', callback_data: 'task_menu'}],
+                    [{text: 'Добавить задачу', callback_data: 'add_task_menu'}],
+                    [{text: 'Назад', callback_data: 'back_to_start'}]
+                ]
+            }
+        });
+        userStates[chatId].previousMenu = sendGroupMenu;
+    }
 }
 
 // Отправка меню добавления задачи
@@ -142,6 +158,11 @@ bot.on('callback_query', async (query) => {
 
     const user = await db.User.findOne({ where: { telegram_id: chatId } });
 
+    if (!user) {
+        bot.sendMessage(chatId, 'Пользователь не найден.');
+        return;
+    }
+
     if (data.startsWith('select_active_group_')) {
         const page = parseInt(data.split('_').pop());
         await groupController.showActiveGroups(chatId, bot, page);
@@ -179,6 +200,20 @@ bot.on('callback_query', async (query) => {
         case 'back_to_group':
             await sendGroupMenu(chatId, user);
             break;
+        case 'add_task_personal':
+            bot.sendMessage(chatId, 'Введите название задачи:');
+            userStates[chatId] = { state: 'add_task_personal_title', userId: user.id };
+            break;
+        case 'add_task_group':
+            bot.sendMessage(chatId, 'Введите название задачи:');
+            userStates[chatId] = { state: 'add_task_group_title', userId: user.id };
+            break;
+        case 'my_tasks':
+            await taskController.getPersonalTasks(chatId, user.id, bot);
+            break;
+        case 'group_tasks':
+            await taskController.getGroupTasks(chatId, user.id, bot);
+            break;
         case 'approve_task':
             // Логика обработки утверждения задачи
             await sendTaskRequestMenu(chatId);
@@ -196,6 +231,7 @@ bot.on('message', async (msg) => {
 
     if (userStates[chatId]) {
         const state = userStates[chatId].state;
+        const userId = userStates[chatId].userId;
 
         switch (state) {
             case 'add_group':
@@ -203,9 +239,61 @@ bot.on('message', async (msg) => {
                 userStates[chatId].state = null;
                 await sendStartMenu(chatId);
                 break;
+            case 'add_task_personal_title':
+                userStates[chatId].taskTitle = text;
+                bot.sendMessage(chatId, 'Введите описание задачи:');
+                userStates[chatId].state = 'add_task_personal_description';
+                break;
+            case 'add_task_personal_description':
+                userStates[chatId].taskDescription = text;
+                bot.sendMessage(chatId, 'Введите дедлайн задачи (YYYY-MM-DD):');
+                userStates[chatId].state = 'add_task_personal_deadline';
+                break;
+            case 'add_task_personal_deadline':
+                if (isValidDate(text)) {
+                    const deadline = moment(text);
+                    if (deadline.isBefore(moment(), 'day')) {
+                        bot.sendMessage(chatId, 'Дата не может быть в прошлом. Пожалуйста, введите корректную дату:');
+                    } else {
+                        userStates[chatId].taskDeadline = text;
+                        await taskController.addPersonalTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, userStates[chatId].taskDeadline, bot);
+                        userStates[chatId] = {};
+                    }
+                } else {
+                    bot.sendMessage(chatId, 'Некорректная дата. Пожалуйста, введите дату в формате YYYY-MM-DD:');
+                }
+                break;
+            case 'add_task_group_title':
+                userStates[chatId].taskTitle = text;
+                bot.sendMessage(chatId, 'Введите описание задачи:');
+                userStates[chatId].state = 'add_task_group_description';
+                break;
+            case 'add_task_group_description':
+                userStates[chatId].taskDescription = text;
+                bot.sendMessage(chatId, 'Введите дедлайн задачи (YYYY-MM-DD):');
+                userStates[chatId].state = 'add_task_group_deadline';
+                break;
+            case 'add_task_group_deadline':
+                if (isValidDate(text)) {
+                    const deadline = moment(text);
+                    if (deadline.isBefore(moment(), 'day')) {
+                        bot.sendMessage(chatId, 'Дата не может быть в прошлом. Пожалуйста, введите корректную дату:');
+                    } else {
+                        userStates[chatId].taskDeadline = text;
+                        await taskController.addGroupTask(chatId, userId, userStates[chatId].taskTitle, userStates[chatId].taskDescription, userStates[chatId].taskDeadline, bot);
+                        userStates[chatId] = {};
+                    }
+                } else {
+                    bot.sendMessage(chatId, 'Некорректная дата. Пожалуйста, введите дату в формате YYYY-MM-DD:');
+                }
+                break;
             // Добавьте другие case для обработки состояния
         }
     }
 });
+
+const isValidDate = (dateString) => {
+    return moment(dateString, 'YYYY-MM-DD', true).isValid();
+}
 
 
