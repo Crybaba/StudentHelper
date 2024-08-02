@@ -26,10 +26,9 @@ const sendStartMenu = async (chatId) => {
     userStates[chatId].previousMenu = sendStartMenu;
 }
 
-// Отправка меню группы
+//отправка меню группы
 const sendGroupMenu = async (chatId, user) => {
-    if (user && ( user.role === 'admin' || user.role === 'admin'))
-    {
+    if (user && (user.role === 'admin' || user.role === 'admin')) {
         const group = await db.Group.findByPk(user.group_id);
         bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
             reply_markup: {
@@ -42,9 +41,7 @@ const sendGroupMenu = async (chatId, user) => {
             }
         });
         userStates[chatId].previousMenu = sendGroupMenu;
-    }
-    else
-    {
+    } else {
         const group = await db.Group.findByPk(user.group_id);
         bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
             reply_markup: {
@@ -57,7 +54,7 @@ const sendGroupMenu = async (chatId, user) => {
         });
         userStates[chatId].previousMenu = sendGroupMenu;
     }
-}
+};
 
 // Отправка меню добавления задачи
 const sendAddTaskMenu = async (chatId) => {
@@ -106,7 +103,7 @@ const sendAdminMenu = async (chatId) => {
 // Отправка меню запросов задач
 const sendTaskRequestMenu = async (chatId) => {
     try {
-        const user = await db.User.findOne({ where: { chat_id: chatId } });
+        const user = await db.User.findOne({ where: { telegram_id: chatId } });
 
         if (!user) {
             bot.sendMessage(chatId, 'Пользователь не найден.');
@@ -142,6 +139,7 @@ const sendTaskRequestMenu = async (chatId) => {
         bot.sendMessage(chatId, 'Произошла ошибка при получении заявок на добавление задач.');
     }
 };
+
 
 
 bot.onText(/\/start/, async (msg) => {
@@ -204,6 +202,22 @@ bot.on('callback_query', async (query) => {
         return;
     }
 
+    if (data.startsWith('approve_task_')) {
+        const taskId = parseInt(data.split('_').pop());
+        await db.Task.update({ status: 'active' }, { where: { id: taskId } });
+        bot.sendMessage(chatId, 'Задача утверждена.');
+        await sendTaskRequestMenu(chatId);
+        return;
+    }
+
+    if (data.startsWith('reject_task_')) {
+        const taskId = parseInt(data.split('_').pop());
+        await db.Task.destroy({ where: { id: taskId } });
+        bot.sendMessage(chatId, 'Задача отклонена.');
+        await sendTaskRequestMenu(chatId);
+        return;
+    }
+
     switch (data) {
         case 'add_group':
             bot.sendMessage(chatId, 'Введите имя группы для добавления:');
@@ -244,12 +258,7 @@ bot.on('callback_query', async (query) => {
         case 'group_tasks':
             await taskController.getGroupTasks(chatId, user.id, bot);
             break;
-        case 'approve_task':
-            // Логика обработки утверждения задачи
-            await sendTaskRequestMenu(chatId);
-            break;
-        case 'reject_task':
-            // Логика обработки отклонения задачи
+        case 'getPendingTasks':
             await sendTaskRequestMenu(chatId);
             break;
         case 'add_group_admin':
@@ -340,6 +349,7 @@ bot.on('message', async (msg) => {
         }
     }
 });
+
 
 const isValidDate = (dateString) => {
     return moment(dateString, 'YYYY-MM-DD', true).isValid();
