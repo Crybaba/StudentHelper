@@ -144,7 +144,6 @@ bot.onText(/\/admin/, async (msg) => {
         bot.sendMessage(chatId, 'Ошибка доступа. Вы не администратор.');
     }
 });
-
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const messageId = query.message.message_id;
@@ -222,6 +221,10 @@ bot.on('callback_query', async (query) => {
             // Логика обработки отклонения задачи
             await sendTaskRequestMenu(chatId);
             break;
+        case 'add_group_admin':
+            bot.sendMessage(chatId, 'Введите название группы для активации:');
+            userStates[chatId].state = 'activate_group_name';
+            break;
     }
 });
 
@@ -287,6 +290,11 @@ bot.on('message', async (msg) => {
                     bot.sendMessage(chatId, 'Некорректная дата. Пожалуйста, введите дату в формате YYYY-MM-DD:');
                 }
                 break;
+            case 'activate_group_name':
+                await groupController.activateGroup(chatId, text, bot);
+                userStates[chatId].state = null;
+                await sendAdminMenu(chatId);
+                break;
             // Добавьте другие case для обработки состояния
         }
     }
@@ -295,5 +303,3 @@ bot.on('message', async (msg) => {
 const isValidDate = (dateString) => {
     return moment(dateString, 'YYYY-MM-DD', true).isValid();
 }
-
-
