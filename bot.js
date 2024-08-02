@@ -192,6 +192,10 @@ bot.on('callback_query', async (query) => {
         case 'task_menu':
             await sendTaskMenu(chatId);
             break;
+        case 'assign_curator':
+            bot.sendMessage(chatId, 'Введите username пользователя для назначения куратором:');
+            userStates[chatId].state = 'assign_curator_username';
+            break;
         case 'back_to_start':
             await db.User.update({ group_id: null }, { where: { telegram_id: chatId } });
             await sendStartMenu(chatId);
@@ -246,6 +250,16 @@ bot.on('message', async (msg) => {
                 userStates[chatId].taskTitle = text;
                 bot.sendMessage(chatId, 'Введите описание задачи:');
                 userStates[chatId].state = 'add_task_personal_description';
+                break;
+            case 'assign_curator_username':
+                const group = await db.User.findOne({ where: { telegram_id: chatId } }).then(user => user.group_id);
+                if (!group) {
+                    bot.sendMessage(chatId, 'Вы не состоите в группе.');
+                    break;
+                }
+                await userController.assignCurator(chatId, text, group, bot);
+                userStates[chatId].state = null;
+                await sendAdminMenu(chatId);
                 break;
             case 'add_task_personal_description':
                 userStates[chatId].taskDescription = text;
