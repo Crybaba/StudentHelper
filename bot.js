@@ -2,6 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const token = '7461792381:AAEIKFHDNLwC17s_3bro-oHCT2JCJ1YP-FE';
 const bot = new TelegramBot(token, { polling: true });
 const moment = require('moment');
+const cron = require('node-cron');
 
 const groupController = require('./controllers/groupController');
 const taskController = require('./controllers/taskController');
@@ -33,6 +34,7 @@ const sendGroupMenu = async (chatId, user) => {
         bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
             reply_markup: {
                 inline_keyboard: [
+                    [{text: 'Разослать уведомления', callback_data: 'send_notifications'}],
                     [{text: 'Заявки на добавление задач', callback_data: 'getPendingTasks'}],
                     [{text: 'Задачи', callback_data: 'task_menu'}],
                     [{text: 'Добавить задачу', callback_data: 'add_task_menu'}],
@@ -169,6 +171,7 @@ bot.onText(/\/admin/, async (msg) => {
         bot.sendMessage(chatId, 'Ошибка доступа. Вы не администратор.');
     }
 });
+
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const messageId = query.message.message_id;
@@ -219,6 +222,11 @@ bot.on('callback_query', async (query) => {
     }
 
     switch (data) {
+        case 'send_notifications':
+            await sendPersonalNotifications();
+            await sendGroupNotifications();
+            bot.sendMessage(chatId, 'Уведомления успешно отправлены!');
+            break;
         case 'add_group':
             bot.sendMessage(chatId, 'Введите имя группы для добавления:');
             userStates[chatId].state = 'add_group';
@@ -264,6 +272,13 @@ bot.on('callback_query', async (query) => {
         case 'add_group_admin':
             bot.sendMessage(chatId, 'Введите название группы для активации:');
             userStates[chatId].state = 'activate_group_name';
+            break;
+        case 'complete_task_prompt':
+            bot.sendMessage(chatId, 'Введите ID задачи для завершения:');
+            userStates[chatId].state = 'complete_task';
+            break;
+        case 'back_to_task_menu':
+            await sendTaskMenu(chatId);
             break;
     }
 });
@@ -345,11 +360,99 @@ bot.on('message', async (msg) => {
                 userStates[chatId].state = null;
                 await sendAdminMenu(chatId);
                 break;
+            case 'complete_task':
+                const taskId = parseInt(text);
+                if (isNaN(taskId)) {
+                    bot.sendMessage(chatId, 'Некорректный ID задачи. Пожалуйста, введите корректный ID задачи.');
+                } else {
+                    await taskController.completeTask(chatId, taskId, bot);
+                    userStates[chatId].state = null;
+                }
+                break;
         }
     }
 });
 
 
+
 const isValidDate = (dateString) => {
     return moment(dateString, 'YYYY-MM-DD', true).isValid();
 }
+
+const sendPersonalNotifications = async () => {
+    const now = moment();
+    const oneWeekLater = now.clone().add(7, 'days').format('YYYY-MM-DD');
+    const threeDaysLater = now.clone().add(3, 'days').format('YYYY-MM-DD');
+
+    // Уведомления за неделю до дедлайна
+    const personalTasksWeek = await db.Task.findAll({
+        where: {
+            deadline: oneWeekLater,
+            creator_id: { [db.Sequelize.Op.ne]: null },
+        },
+    });
+
+    for (const task of personalTasksWeek) {
+        const user = await db.User.findOne({ where: { id: task.creator_id } });
+        if (user) {
+            bot.sendMessage(user.telegram_id, `Напоминаем, что до дедлайна вашей задачи "${task.title}" осталась одна неделя.`);
+        }
+    }
+
+    // Уведомления за три дня до дедлайна
+    const personalTasksThreeDays = await db.Task.findAll({
+        where: {
+            deadline: { [db.Sequelize.Op.lte]: threeDaysLater },
+            creator_id: { [db.Sequelize.Op.ne]: null },
+        },
+    });
+
+    for (const task of personalTasksThreeDays) {
+        const user = await db.User.findOne({ where: { id: task.creator_id } });
+        if (user) {
+            bot.sendMessage(user.telegram_id, `Напоминаем, что до дедлайна вашей задачи "${task.title}" осталось ${moment(task.deadline).diff(now, 'days')} дней.`);
+        }
+    }
+};
+
+const sendGroupNotifications = async () => {
+    const now = moment();
+    const oneWeekLater = now.clone().add(7, 'days').format('YYYY-MM-DD');
+    const threeDaysLater = now.clone().add(3, 'days').format('YYYY-MM-DD');
+
+    // Уведомления за неделю до дедлайна
+    const groupTasksWeek = await db.Task.findAll({
+        where: {
+            deadline: oneWeekLater,
+            group_id: { [db.Sequelize.Op.ne]: null },
+        },
+    });
+
+    for (const task of groupTasksWeek) {
+        const groupMembers = await db.User.findAll({ where: { group_id: task.group_id } });
+        for (const user of groupMembers) {
+            bot.sendMessage(user.telegram_id, `Напоминаем, что до дедлайна групповой задачи "${task.title}" осталась одна неделя.`);
+        }
+    }
+
+    // Уведомления за три дня до дедлайна
+    const groupTasksThreeDays = await db.Task.findAll({
+        where: {
+            deadline: { [db.Sequelize.Op.lte]: threeDaysLater },
+            group_id: { [db.Sequelize.Op.ne]: null },
+        },
+    });
+
+    for (const task of groupTasksThreeDays) {
+        const groupMembers = await db.User.findAll({ where: { group_id: task.group_id } });
+        for (const user of groupMembers) {
+            bot.sendMessage(user.telegram_id, `Напоминаем, что до дедлайна групповой задачи "${task.title}" осталось ${moment(task.deadline).diff(now, 'days')} дней.`);
+        }
+    }
+};
+
+// Запуск задач по расписанию
+cron.schedule('0 9 * * *', async () => {
+    await sendPersonalNotifications();
+    await sendGroupNotifications();
+});
