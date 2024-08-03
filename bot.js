@@ -28,7 +28,7 @@ const sendStartMenu = async (chatId) => {
 
 //отправка меню группы
 const sendGroupMenu = async (chatId, user) => {
-    if (user && (user.role === 'admin' || user.role === 'admin')) {
+    if (user && (user.role === 'admin' || user.role === 'curator')) {
         const group = await db.Group.findByPk(user.group_id);
         bot.sendMessage(chatId, `Вы выбрали группу "${group.name}"`, {
             reply_markup: {
@@ -345,7 +345,6 @@ bot.on('message', async (msg) => {
                 userStates[chatId].state = null;
                 await sendAdminMenu(chatId);
                 break;
-            // Добавьте другие case для обработки состояния
         }
     }
 });
