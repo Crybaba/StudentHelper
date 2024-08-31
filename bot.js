@@ -235,6 +235,10 @@ bot.on('callback_query', async (query) => {
             await groupController.getPendingGroups(chatId, bot);
             await sendStartMenu(chatId);
             break;
+        case 'delete_group':
+            bot.sendMessage(chatId, 'Введите название группы для удаления:');
+            userStates[chatId].state = 'delete_group_name';
+            break;
         case 'add_task_menu':
             await sendAddTaskMenu(chatId);
             break;
@@ -244,6 +248,10 @@ bot.on('callback_query', async (query) => {
         case 'assign_curator':
             bot.sendMessage(chatId, 'Введите username пользователя для назначения куратором:');
             userStates[chatId].state = 'assign_curator_username';
+            break;
+        case 'remove_curator':
+            bot.sendMessage(chatId, 'Введите username куратора для разжалования');
+            userStates[chatId].state = 'remove_curator_username';
             break;
         case 'back_to_start':
             await db.User.update({ group_id: null }, { where: { telegram_id: chatId } });
@@ -312,6 +320,16 @@ bot.on('message', async (msg) => {
                 userStates[chatId].state = null;
                 await sendAdminMenu(chatId);
                 break;
+            case 'remove_curator_username':
+                await userController.removeCuratorRole(chatId, text, bot);
+                userStates[chatId].state = null;
+                await sendAdminMenu(chatId);
+                break;
+            case 'delete_group_name':
+                await groupController.deleteGroup(chatId, text, bot);
+                userStates[chatId].state = null;
+                await sendAdminMenu(chatId);
+                break;                
             case 'add_task_personal_description':
                 userStates[chatId].taskDescription = text;
                 bot.sendMessage(chatId, 'Введите дедлайн задачи (YYYY-MM-DD):');
